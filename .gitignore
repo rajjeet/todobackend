@@ -1,0 +1,7 @@
+# Ignore compiled Python source files
+*.pyc
+
+# Ignore SQLite database files
+*.sqlite3
+
+
