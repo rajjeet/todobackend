@@ -11,7 +11,8 @@ setup (
                                 "Django>=1.9,<2.0",
                                 "django-cors-headers>=1.1.0",
                                 "djangorestframework>=3.3.0,<4.0.0",
-                                "mysqlclient>=1.3.13,<2.0.0"
+                                "mysqlclient>=1.3.13,<2.0.0",
+                                "uwsgi>=2.0.17"
                             ],
     extras_require          = {
                                 "test": [
