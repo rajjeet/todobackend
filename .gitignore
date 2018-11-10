@@ -10,3 +10,4 @@ venv
 # XML files
 *.xml
 .vscode
+*.whl
