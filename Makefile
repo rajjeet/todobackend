@@ -14,10 +14,13 @@ REL_PROJECT := $(PROJECT_NAME)$(BUILD_ID)
 .PHONY: test build release clean
 
 test:
-	${INFO} "Starting test phase..."
+	${INFO} "Building images..."
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) build
+	${INFO} "Ensuring database is ready..."
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) up agent
+	${INFO} "Running tests..."
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) up test
+	@ docker cp $$(docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) ps -q test):/reports/. reports
 	${INFO} "Test phase completed!"
 
 build:
@@ -32,6 +35,7 @@ release:
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) run --rm app manage.py collectstatic --no-input
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) run --rm app manage.py migrate --no-input
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) up test
+	@ docker cp $$(docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) ps -q test):/reports/. reports
 	${INFO} "Release phase completed!"
 
 clean:
