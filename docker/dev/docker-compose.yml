@@ -24,7 +24,7 @@ builder:
   command: ["pip", "wheel", "--no-index", "-f /build", "."]
 
 agent:
-  image: raj/ansible:latest
+  image: phullr2/todobackend-ansible:latest
   volumes:
     - ../../ansible/probe.yml:/ansible/site.yml
   links: 

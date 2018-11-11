@@ -19,7 +19,7 @@ app:
     - "--die-on-term"
 
 test:
-  image: raj/todobackend-specs:latest 
+  image: phullr2/todobackend-specs:latest 
   links: 
     - nginx
   environment:
@@ -57,7 +57,7 @@ db:
     MYSQL_ROOT_PASSWORD: password
 
 agent:
-  image: raj/ansible
+  image: phullr2/todobackend-ansible:latest
   volumes:
     - ../../ansible/probe.yml:/ansible/site.yml
   links:
