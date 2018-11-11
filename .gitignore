@@ -11,3 +11,5 @@ venv
 *.xml
 .vscode
 *.whl
+target
+reports
