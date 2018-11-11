@@ -14,27 +14,36 @@ REL_PROJECT := $(PROJECT_NAME)$(BUILD_ID)
 .PHONY: test build release clean
 
 test:
+	${INFO} "Beginning test phase..."
 	${INFO} "Building images..."
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) build
 	${INFO} "Ensuring database is ready..."
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) up agent
 	${INFO} "Running tests..."
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) up test
+	${INFO} "Exporting test reports..."
 	@ docker cp $$(docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) ps -q test):/reports/. reports
 	${INFO} "Test phase completed!"
 
 build:
 	${INFO} "Starting build phase..."
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) up builder
+	@ docker cp $$(docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) ps -q test):/wheelhouse/. target
 	${INFO} "Build phase completed!"
 
 release:
 	${INFO} "Starting release phase..."
+	${INFO} "Building images..."
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) build	
+	${INFO} "Ensuring database is ready..."
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) up agent
+	${INFO} "Collecting and loading static files..."
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) run --rm app manage.py collectstatic --no-input
+	${INFO} "Migrating database schema..."
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) run --rm app manage.py migrate --no-input
+	${INFO} "Running tests..."
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) up test
+	${INFO} "Exporting test reports..."
 	@ docker cp $$(docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) ps -q test):/reports/. reports
 	${INFO} "Release phase completed!"
 
