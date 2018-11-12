@@ -31,7 +31,28 @@ CHECK := @bash -c '\
 APP_CONTAINER_ID := $$(docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) ps -q $(APP_SERVICE_NAME))
 APP_IMAGE_ID := $$(docker inspect -f '{{ .Image}}' $(APP_CONTAINER_ID))
 
-.PHONY: test build release clean tag
+# Build tag expression - can be used to evaluate a shell expression at runtime
+BUILD_TAG_EXPRESSION ?= date -u +%Y%m%d%H%M%S
+BUILD_EXPRESSION := $(shell $(BUILD_TAG_EXPRESSION))
+BUILD_TAG ?= $(BUILD_EXPRESSION)
+
+ifeq (buildtag, $(firstword $(MAKECMDGOALS)))
+  BUILD_TAG_ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))	
+  ifeq ($(BUILD_TAG_ARGS), )
+    $(error You must specify a tag)
+  endif
+  $(eval $(BUILD_TAG_ARGS):;@:)
+endif
+
+ifeq (tag, $(firstword $(MAKECMDGOALS)))
+  TAG_ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))	
+  ifeq ($(TAG_ARGS), )
+    $(error You must specify a tag)
+  endif
+  $(eval $(TAG_ARGS):;@:)
+endif
+
+.PHONY: test build release clean tag buildtag
 
 test:
 	${INFO} "Beginning test phase..."
@@ -91,10 +112,6 @@ tag:
 	${INFO} "Tagging container: $(APP_CONTAINER_ID) of image: $(APP_IMAGE_ID)"
 	@ $(foreach tag, $(TAG_ARGS), docker tag $(APP_IMAGE_ID) $(DOCKER_REGISTERY)/$(ORG_NAME)/$(REPO_NAME):$(tag);)
 
-ifeq (tag, $(firstword $(MAKECMDGOALS)))
-  TAG_ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))	
-  ifeq ($(TAG_ARGS), )
-    $(error You must specify a tag)
-  endif
-  $(eval $(TAG_ARGS):;@:)
-endif
+buildtag:
+	${INFO} "Tagging container: $(APP_CONTAINER_ID) of image: $(APP_IMAGE_ID)"
+	@ $(foreach tag, $(BUILD_TAG_ARGS), docker tag $(APP_IMAGE_ID) $(DOCKER_REGISTERY)/$(ORG_NAME)/$(REPO_NAME):$(tag).$(BUILD_TAG);)
