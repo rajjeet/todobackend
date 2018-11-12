@@ -1,15 +1,16 @@
 # Project parameters
 PROJECT_NAME 		  ?= todobackend
-ORG_NAME 			    ?= raj
+ORG_NAME 			  ?= phullr2
 REPO_NAME 			  ?= todobackend
-DOCKER_REGISTERY 	?= docker.io
+DOCKER_REGISTRY 	  ?= docker.io
+DOCKER_REGISTRY_AUTH  ?=
 
 # Project variables and constants
 APP_SERVICE_NAME 	:= app
 DEV_COMPOSE_FILE 	:= docker/dev/docker-compose.yml
 REL_COMPOSE_FILE 	:= docker/release/docker-compose.yml
-DEV_PROJECT 		  := $(PROJECT_NAME)dev
-REL_PROJECT 		  := $(PROJECT_NAME)$(BUILD_ID)
+DEV_PROJECT 		:= $(PROJECT_NAME)dev
+REL_PROJECT 		:= $(PROJECT_NAME)$(BUILD_ID)
 
 # Constants
 YELLOW := "\e[1;33m"
@@ -30,6 +31,15 @@ CHECK := @bash -c '\
 # App container ID and image ID
 APP_CONTAINER_ID := $$(docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) ps -q $(APP_SERVICE_NAME))
 APP_IMAGE_ID := $$(docker inspect -f '{{ .Image}}' $(APP_CONTAINER_ID))
+
+ifeq ($(DOCKER_REGISTRY), docker.io)
+  REPO_FILTER := $(ORG_NAME)/$(REPO_NAME)[^[:space:]|\$$]*
+else
+  REPO_FILTER := $(DOCKER_REGISTRY)/$(ORG_NAME)/$(REPO_NAME)[^[:space:]|\$$]*
+endif
+
+# Introspect repo tags
+REPO_EXPR := $$(docker inspect -f '{{range .RepoTags}}{{.}} {{end}}' $(APP_IMAGE_ID) | grep -oh "$(REPO_FILTER)" | xargs)
 
 # Build tag expression - can be used to evaluate a shell expression at runtime
 BUILD_TAG_EXPRESSION ?= date -u +%Y%m%d%H%M%S
@@ -52,7 +62,7 @@ ifeq (tag, $(firstword $(MAKECMDGOALS)))
   $(eval $(TAG_ARGS):;@:)
 endif
 
-.PHONY: test build release clean tag buildtag
+.PHONY: test build release clean tag buildtag login logout publish
 
 test:
 	${INFO} "Beginning test phase..."
@@ -110,8 +120,23 @@ clean:
 
 tag:
 	${INFO} "Tagging container: $(APP_CONTAINER_ID) of image: $(APP_IMAGE_ID)"
-	@ $(foreach tag, $(TAG_ARGS), docker tag $(APP_IMAGE_ID) $(DOCKER_REGISTERY)/$(ORG_NAME)/$(REPO_NAME):$(tag);)
+	@ $(foreach tag, $(TAG_ARGS), docker tag $(APP_IMAGE_ID) $(DOCKER_REGISTRY)/$(ORG_NAME)/$(REPO_NAME):$(tag);)
 
 buildtag:
 	${INFO} "Tagging container: $(APP_CONTAINER_ID) of image: $(APP_IMAGE_ID)"
-	@ $(foreach tag, $(BUILD_TAG_ARGS), docker tag $(APP_IMAGE_ID) $(DOCKER_REGISTERY)/$(ORG_NAME)/$(REPO_NAME):$(tag).$(BUILD_TAG);)
+	@ $(foreach tag, $(BUILD_TAG_ARGS), docker tag $(APP_IMAGE_ID) $(DOCKER_REGISTRY)/$(ORG_NAME)/$(REPO_NAME):$(tag).$(BUILD_TAG);)
+
+login:
+	${INFO} "Logging into Docker registry $$DOCKER_REGISTRY"
+	@ docker login -u $$DOCKER_USER -p $$DOCKER_PASSWORD $(DOCKER_REGISTRY_AUTH)
+	${INFO} "Successfully logged into Docker registry $$DOCKER_REGISTRY"
+
+logout:
+	${INFO} "Logging out off Docker registry $$DOCKER_REGISTRY"
+	@ docker logout
+	${INFO} "Successfully logged out off Docker registry $$DOCKER_REGISTRY"
+
+publish:
+	${INFO} "Publishing release image $(APP_IMAGE_ID) to $(DOCKER_REGISTRY)/$(ORG_NAME)/$(REPO_NAME)..."
+	@ $(foreach tag, $(shell echo $(REPO_EXPR)), docker push $(tag);)
+	${INFO} "Publish complete!"
