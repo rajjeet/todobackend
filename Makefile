@@ -1,15 +1,15 @@
-# Project variables
-PROJECT_NAME ?= todobackend
-ORG_NAME ?= raj
-REPO_NAME ?= todobackend
+# Project parameters
+PROJECT_NAME 		  ?= todobackend
+ORG_NAME 			    ?= raj
+REPO_NAME 			  ?= todobackend
+DOCKER_REGISTERY 	?= docker.io
 
-# Filenames
-DEV_COMPOSE_FILE := docker/dev/docker-compose.yml
-REL_COMPOSE_FILE := docker/release/docker-compose.yml
-
-# Docker compose project names
-DEV_PROJECT := $(PROJECT_NAME)dev
-REL_PROJECT := $(PROJECT_NAME)$(BUILD_ID)
+# Project variables and constants
+APP_SERVICE_NAME 	:= app
+DEV_COMPOSE_FILE 	:= docker/dev/docker-compose.yml
+REL_COMPOSE_FILE 	:= docker/release/docker-compose.yml
+DEV_PROJECT 		  := $(PROJECT_NAME)dev
+REL_PROJECT 		  := $(PROJECT_NAME)$(BUILD_ID)
 
 # Constants
 YELLOW := "\e[1;33m"
@@ -27,7 +27,11 @@ CHECK := @bash -c '\
 	if [[ $(INSPECT) -ne 0 ]]; \
 	then exit $(INSPECT); fi' VALUE
 
-.PHONY: test build release clean
+# App container ID and image ID
+APP_CONTAINER_ID := $$(docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) ps -q $(APP_SERVICE_NAME))
+APP_IMAGE_ID := $$(docker inspect -f '{{ .Image}}' $(APP_CONTAINER_ID))
+
+.PHONY: test build release clean tag
 
 test:
 	${INFO} "Beginning test phase..."
@@ -82,4 +86,15 @@ clean:
 	@ docker-compose -p $(DEV_PROJECT) -f $(DEV_COMPOSE_FILE) down -v
 	@ docker-compose -p $(REL_PROJECT) -f $(REL_COMPOSE_FILE) down -v
 	${INFO} "Clean completed successfully!"
-	
+
+tag:
+	${INFO} "Tagging container: $(APP_CONTAINER_ID) of image: $(APP_IMAGE_ID)"
+	@ $(foreach tag, $(TAG_ARGS), docker tag $(APP_IMAGE_ID) $(DOCKER_REGISTERY)/$(ORG_NAME)/$(REPO_NAME):$(tag);)
+
+ifeq (tag, $(firstword $(MAKECMDGOALS)))
+  TAG_ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))	
+  ifeq ($(TAG_ARGS), )
+    $(error You must specify a tag)
+  endif
+  $(eval $(TAG_ARGS):;@:)
+endif
